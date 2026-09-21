@@ -23,6 +23,7 @@ your pipeline, not giving up.
 """
 
 from dataclasses import dataclass
+import re
 
 import config
 from ingest import Document
@@ -81,23 +82,90 @@ def fallback_split(
 
 
 def split_documents(documents: list[Document]) -> list[Chunk]:
+    """Split documents into chunks based on markdown sections.
+
+    Strategy for city_guides:
+      - Breaks each document along markdown '## ' section headers 
+        so topics remain intact and unfragmented.
+      - Attaches any introduction text before the first '## ' into
+        the first section chunk to avoid short fragments.
+      - Prepends the document title ('# <Title>') to each section chunk 
+        so chunks in isolation retain standalone context.
+      - Emits Chunk objects with produced_by="chunker.py::split_documents".
+
+    Args:
+        documents: List of Document objects loaded from the corpus.
+
+    Returns:
+        List of Chunk objects.
     """
-    Split documents into chunks. ⚠️ REPLACE THE BODY OF THIS IN MILESTONE 3.
+    chunks: list[Chunk] = []
 
-    Right now it just calls the fallback. That is the plain, generic behaviour
-    the brief is talking about.
+    for doc in documents:
+        text = doc.text
+        lines = text.split("\n")
+        doc_title = ""
+        for line in lines:
+            if line.startswith("# "):
+                doc_title = line[2:].strip()
+                break
 
-    When you write your own strategy, set `produced_by` to
-    "chunker.py::split_documents" so your README's Sample Chunks section names
-    the right function. `app.py chunks` prints that string for you.
+        # Split on markdown section headers '## '
+        parts = re.split(r"\n(?=## )", text)
+        intro_part = parts[0].strip()
+        section_parts = parts[1:]
 
-    Things worth thinking about before you write any code:
-      - Are your documents short posts or long guides?
-      - Is the useful information in one sentence, or spread over a paragraph?
-      - Would splitting on paragraph breaks keep more thoughts intact than
-        splitting on a character count?
-    """
-    return fallback_split(documents)
+        # Extract any intro body lines beyond '# Title'
+        intro_lines = [
+            line.strip()
+            for line in intro_part.split("\n")
+            if line.strip() and not line.startswith("# ")
+        ]
+        intro_body = "\n\n".join(intro_lines)
+
+        chunk_index = 0
+        if not section_parts:
+            # Fallback for documents without '## ' sections
+            piece = text.strip()
+            if piece:
+                chunks.append(
+                    Chunk(
+                        text=piece,
+                        source=doc.source,
+                        index=chunk_index,
+                        produced_by="chunker.py::split_documents",
+                    )
+                )
+            continue
+
+        for i, sec in enumerate(section_parts):
+            sec_clean = sec.strip()
+            if not sec_clean:
+                continue
+
+            if i == 0 and intro_body:
+                # Merge intro overview into the first section chunk
+                if doc_title:
+                    chunk_text = f"# {doc_title}\n\n{intro_body}\n\n{sec_clean}"
+                else:
+                    chunk_text = f"{intro_body}\n\n{sec_clean}"
+            else:
+                if doc_title:
+                    chunk_text = f"# {doc_title}\n\n{sec_clean}"
+                else:
+                    chunk_text = sec_clean
+
+            chunks.append(
+                Chunk(
+                    text=chunk_text,
+                    source=doc.source,
+                    index=chunk_index,
+                    produced_by="chunker.py::split_documents",
+                )
+            )
+            chunk_index += 1
+
+    return chunks
 
 
 def describe(chunks: list[Chunk]) -> str:
