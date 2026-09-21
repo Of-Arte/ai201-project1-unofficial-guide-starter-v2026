@@ -48,8 +48,7 @@ in at least 4 of 5 tries.
 
 Our out of scope questions share almost no overlap with our scoped questions. A target of 4 out of 5 leaves room for edge cases where general words might lower the distance score for an out of scope question.
 
-<!-- What did your distances look like when you set the cutoff in Milestone 4?
-     Was there a clean gap, or did the two groups overlap? -->
+There was a clean 0.3036 gap between the highest in-scope distance (0.5314) and the lowest out-of-scope distance (0.8350), with zero overlap between the two groups.
 
 ---
 

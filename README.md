@@ -8,18 +8,18 @@ Dearte Hammonds - City Guides
 
 ## What This Does
 
-This project uses a vector database to answer questions about the 'city_guides' corpus, which consists of 14 markdown files covering various locations in a fictional region. These guides cover topics such as travel, sight seeing, activities, restaurants, and accommodation.
+This project uses a vector database to answer questions about the 'city_guides' corpus, which consists of 14 markdown files covering various locations in a fictional region. These guides cover topics such as travel, sightseeing, activities, restaurants, and accommodation.
 
 ## Chunking Strategy
 
 **Chunk size:** 400
 **Overlap:** 0
 
-The starter chunker's 800 character window often cut directly across markdown section headers which fragmented the content, often merging unrelated subjects or splitting important sentences in half. This was most noticable in the verbosity/length of responses for questions that required more than one section to answer. 
+The starter chunker's 800 character window often cut directly across markdown section headers, which fragmented the content, often merging unrelated subjects or splitting important sentences in half. This was most noticeable in the verbosity/length of responses for questions that required more than one section to answer. 
 
-Measuring the section sizes across each file helped me identify that most sections were under the 400 character threshold, with an average of 358 characters. I used this as a baseline and decided to make the chunk size 400. Since each `##` section is an independent topic, using character overlap made little sense for this dataset, as it would reintroduce fragmentation issues. Instead, I attached the `##` title to the front of each chunk to preserve the topic context and ensuring the embedding model and LLM both know which section the chunk came from. I also noticed that the section title provides more relevant context than the source filename alone. 
+Measuring the section sizes across each file helped me identify that most sections were under the 400 character threshold, with an average of 358 characters. I used this as a baseline and decided to make the chunk size 400. Since each `##` section is an independent topic, using character overlap made little sense for this dataset, as it would reintroduce fragmentation issues. Instead, I attached the `##` title to the front of each chunk to preserve the topic context and ensure the embedding model and LLM see which section the chunk came from. I also noticed that the section title provides more relevant context than the source filename alone. 
 
-In the intial prototype, a plain split on the section headers produced 5 violations of Criterion 4 (minimum 150 characters, 2+ complete sentences). This was due to some files not having any text before the first section header, which resulted in tiny title chunks or some chunks with only 1 sentence. I fixed this by updating the chunking logic to merge the intro text into the file's first `##` section chunk. Resulting in 84 chunks with 0 violations of Criterion 4. 
+In the initial prototype, a plain split on the section headers produced 5 violations of Criterion 4 (minimum 150 characters, 2+ complete sentences). This was due to some files not having any text before the first section header, which resulted in tiny title chunks or some chunks with only 1 sentence. I fixed this by updating the chunking logic to merge the intro text into the file's first `##` section chunk, resulting in 84 chunks with 0 violations of Criterion 4. 
 
 ## Sample Chunks
 
@@ -93,9 +93,6 @@ a minor injuries unit locally with limited hours.
 
 ## Sample Answer
 
-<!-- One complete question and answer, pasted as text, with the source line
-     visible. Milestone 4. -->
-
 **Question:** Which bay is built on three levels?
 
 **Answer:**
@@ -110,9 +107,9 @@ Sources retrieved: guide_accessibility.md, guide_eating.md, guide_halden_bay.md
 
 To determine the cutoff, I evaluated all in scope and out of scope questions, logging the best distance for each.
 
-The in scope questions had a best distance range of .2464 to .5314 with a mean of .3683. The out of scope questions had a best distance range of .8350 to .9968 with a mean of .8836. The gap between these two groups is .3036. For the in scope questions, queries with distinct names matched tightly while broader queries scored higher due to terms appearing in multiple documents.
+The in scope questions had a best distance range of 0.2464 to 0.5314 with a mean of 0.3683. The out of scope questions had a best distance range of .8350 to 0.9968 with a mean of 0.8836. The gap between these two groups is 0.3036. For the in scope questions, queries with distinct names matched tightly while broader queries scored higher due to terms appearing in multiple documents.
 
-I set the threshold at .65 to provide a buffer against the chunking strategy I used, which resulted in smaller, more focused chunks that won't always include the context of the entire document. Since each chunk targets a narrow topic, questions phrased indirectly or with only some keywords tend to score higher, so the buffer is used to avoid losing relevant chunks. 
+I set the threshold at 0.65 to provide a buffer against the chunking strategy I used, which resulted in smaller, more focused chunks that won't always include the context of the entire document. Since each chunk targets a narrow topic, questions phrased indirectly or with only some keywords tend to score higher, so the buffer is used to avoid losing relevant chunks. 
 
 | Question | In corpus? | Best distance |
 |---|---|---|
@@ -129,18 +126,21 @@ I set the threshold at .65 to provide a buffer against the chunking strategy I u
 
 ## How I Used AI
 
-<!-- Two specific moments. For each: what you asked for, what came back, and
-     what you changed about it.
+**1.** I used Gemini to analyze the structure of the documents and confirm my suspicion that a header based chunking strategy would be more effective than a character window based strategy. This included measuring the average sizes of document sections and providing examples of an ideal chunk size and their tradeoffs against the existing strategy. Based on this analysis, I provided instructions to produce a new chunking function that split documents along `##` headers. 
 
-     "I asked Claude to write the chunking function from my notes. It ignored
-     the overlap, so I added that myself" is the level of detail we're after.
-     "I used AI to help me code" is not.
+The first iteration focused solely on `##` headers, which left small introduction sections as separate chunks, causing a violation of the min tokens per chunk constraint. I had the model suggest improvements and it suggested merging the introduction sections with the first section of the document and prepending the title to each chunk. 
+     
+I investigated how merging the introduction section with the first section would impact retrieval and found that it did not significantly impact retrieval results, while keeping chunks within the constraints of Criterion 4 and avoiding messy conditional rules for standalone introduction chunks. I also noticed that the titles of each document provided more relevant context than the filenames and that embedding the document title in each chunk improved retrieval. 
 
-     Milestone 5. -->
+**2.** I used Gemini to run all in scope and out of scope questions, log the best distance for each, analyze the gap between the results, outline the tradeoffs of moving the cutoff higher or lower, with examples of how moving the cutoff would impact results.
 
-**1.**
+The model provided a structured set of tables and detailed calculations that made it easy to understand the impact of the cutoff and make an informed decision along with the python script it used to generate the results, which allowed me to verify its output.
 
-**2.**
+I combined these insights with an understanding of the tradeoffs from the new chunking strategy I implemented to make a final decision on the cutoff.
+
+
+
+
 
 <!-- ── Stretch features ─────────────────────────────────────────────────────
      Doing one? Say so here BEFORE you start. A feature this README never
