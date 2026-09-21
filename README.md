@@ -96,27 +96,36 @@ a minor injuries unit locally with limited hours.
 <!-- One complete question and answer, pasted as text, with the source line
      visible. Milestone 4. -->
 
-**Question:**
+**Question:** Which bay is built on three levels?
 
 **Answer:**
 
 ```
+Halden Bay is built on three levels (Source: `guide_halden_bay.md` and `guide_accessibility.md`).
+
+Sources retrieved: guide_accessibility.md, guide_eating.md, guide_halden_bay.md
 ```
 
-**My relevance cutoff:**
+**My relevance cutoff:** 0.65
 
-<!-- The number you set in config.py, and how you got there.
+To determine the cutoff, I evaluated all in scope and out of scope questions, logging the best distance for each.
 
-     You ran five questions your corpus covers and the five in OUT_OF_SCOPE
-     that it clearly doesn't, and wrote down the best distance for each. What
-     did those two groups look like? Where was the gap? Put the actual numbers
-     here — the table below wants all ten rows.
+The in scope questions had a best distance range of .2464 to .5314 with a mean of .3683. The out of scope questions had a best distance range of .8350 to .9968 with a mean of .8836. The gap between these two groups is .3036. For the in scope questions, queries with distinct names matched tightly while broader queries scored higher due to terms appearing in multiple documents.
 
-     Milestone 4. -->
+I set the threshold at .65 to provide a buffer against the chunking strategy I used, which resulted in smaller, more focused chunks that won't always include the context of the entire document. Since each chunk targets a narrow topic, questions phrased indirectly or with only some keywords tend to score higher, so the buffer is used to avoid losing relevant chunks. 
 
 | Question | In corpus? | Best distance |
 |---|---|---|
-|  |  |  |
+| Which bay is built on three levels? | Yes | 0.3424 |
+| In which season do riverside businesses in Brightwater close? | Yes | 0.2464 |
+| Which two types of food can be found on Pellew Sands's seafront? | Yes | 0.2626 |
+| Which town requires booking ahead in the summer, due to lack of accommodation? | Yes | 0.5314 |
+| How long is the canal walk from Northgate to the old lock? | Yes | 0.4585 |
+| What is the capital of Mongolia? | No | 0.8463 |
+| How do I change the oil in a diesel engine? | No | 0.9032 |
+| Who won the 1994 World Cup? | No | 0.9968 |
+| What is the recommended dosage of ibuprofen for a headache? | No | 0.8350 |
+| How do I write a for loop in Rust? | No | 0.8365 |
 
 ## How I Used AI
 
