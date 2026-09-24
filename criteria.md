@@ -52,7 +52,7 @@ There was a clean 0.3036 gap between the highest in-scope distance (0.5314) and 
 
 ---
 
-## 4. Something about your chunks
+## 4. Each chunk has more than 150 characters with at least two complete sentences
 
 No chunk is shorter than 150 characters, and every chunk contains at least two complete sentences.
 
@@ -60,7 +60,7 @@ No chunk is shorter than 150 characters, and every chunk contains at least two c
 
 ---
 
-## 5. Your choice
+## 5. Primary file cited matches the file where the answer is found
 
 For at least 4 of my 5 test questions, the primary file cited in the answer is the same file where the answer is found.
 

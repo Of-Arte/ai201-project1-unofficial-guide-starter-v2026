@@ -15,11 +15,11 @@ This project uses a vector database to answer questions about the 'city_guides' 
 **Chunk size:** 400
 **Overlap:** 0
 
-The starter chunker's 800 character window often cut directly across markdown section headers, which fragmented the content, often merging unrelated subjects or splitting important sentences in half. This was most noticeable in the verbosity/length of responses for questions that required more than one section to answer. 
+The starter chunker's 800 character window often cut directly across markdown section headers, which fragmented the content, often merging unrelated subjects or splitting important sentences in half. This was most noticeable in the verbosity/length of responses for questions that required more than one section to answer.
 
-Measuring the section sizes across each file helped me identify that most sections were under the 400 character threshold, with an average of 358 characters. I used this as a baseline and decided to make the chunk size 400. Since each `##` section is an independent topic, using character overlap made little sense for this dataset, as it would reintroduce fragmentation issues. Instead, I attached the `##` title to the front of each chunk to preserve the topic context and ensure the embedding model and LLM see which section the chunk came from. I also noticed that the section title provides more relevant context than the source filename alone. 
+Measuring the section sizes across each file helped me identify that most sections were under the 400 character threshold, with an average of 358 characters. I used this as a baseline and decided to make the chunk size 400. Since each `##` section is an independent topic, using character overlap made little sense for this dataset, as it would reintroduce fragmentation issues. Instead, I attached the `##` title to the front of each chunk to preserve the topic context and ensure the embedding model and LLM see which section the chunk came from. I also noticed that the section title provides more relevant context than the source filename alone.
 
-In the initial prototype, a plain split on the section headers produced 5 violations of Criterion 4 (minimum 150 characters, 2+ complete sentences). This was due to some files not having any text before the first section header, which resulted in tiny title chunks or some chunks with only 1 sentence. I fixed this by updating the chunking logic to merge the intro text into the file's first `##` section chunk, resulting in 84 chunks with 0 violations of Criterion 4. 
+In the initial prototype, a plain split on the section headers produced 5 violations of Criterion 4 (minimum 150 characters, 2+ complete sentences). This was due to some files not having any text before the first section header, which resulted in tiny title chunks or some chunks with only 1 sentence. I fixed this by updating the chunking logic to merge the intro text into the file's first `##` section chunk, resulting in 84 chunks with 0 violations of Criterion 4.
 
 ## Sample Chunks
 
@@ -109,38 +109,34 @@ To determine the cutoff, I evaluated all in scope and out of scope questions, lo
 
 The in scope questions had a best distance range of 0.2464 to 0.5314 with a mean of 0.3683. The out of scope questions had a best distance range of .8350 to 0.9968 with a mean of 0.8836. The gap between these two groups is 0.3036. For the in scope questions, queries with distinct names matched tightly while broader queries scored higher due to terms appearing in multiple documents.
 
-I set the threshold at 0.65 to provide a buffer against the chunking strategy I used, which resulted in smaller, more focused chunks that won't always include the context of the entire document. Since each chunk targets a narrow topic, questions phrased indirectly or with only some keywords tend to score higher, so the buffer is used to avoid losing relevant chunks. 
+I set the threshold at 0.65 to provide a buffer against the chunking strategy I used, which resulted in smaller, more focused chunks that won't always include the context of the entire document. Since each chunk targets a narrow topic, questions phrased indirectly or with only some keywords tend to score higher, so the buffer is used to avoid losing relevant chunks.
 
-| Question | In corpus? | Best distance |
-|---|---|---|
-| Which bay is built on three levels? | Yes | 0.3424 |
-| In which season do riverside businesses in Brightwater close? | Yes | 0.2464 |
-| Which two types of food can be found on Pellew Sands's seafront? | Yes | 0.2626 |
-| Which town requires booking ahead in the summer, due to lack of accommodation? | Yes | 0.5314 |
-| How long is the canal walk from Northgate to the old lock? | Yes | 0.4585 |
-| What is the capital of Mongolia? | No | 0.8463 |
-| How do I change the oil in a diesel engine? | No | 0.9032 |
-| Who won the 1994 World Cup? | No | 0.9968 |
-| What is the recommended dosage of ibuprofen for a headache? | No | 0.8350 |
-| How do I write a for loop in Rust? | No | 0.8365 |
+| Question                                                                       | In corpus? | Best distance |
+| ------------------------------------------------------------------------------ | ---------- | ------------- |
+| Which bay is built on three levels?                                            | Yes        | 0.3424        |
+| In which season do riverside businesses in Brightwater close?                  | Yes        | 0.2464        |
+| Which two types of food can be found on Pellew Sands's seafront?               | Yes        | 0.2626        |
+| Which town requires booking ahead in the summer, due to lack of accommodation? | Yes        | 0.5314        |
+| How long is the canal walk from Northgate to the old lock?                     | Yes        | 0.4585        |
+| What is the capital of Mongolia?                                               | No         | 0.8463        |
+| How do I change the oil in a diesel engine?                                    | No         | 0.9032        |
+| Who won the 1994 World Cup?                                                    | No         | 0.9968        |
+| What is the recommended dosage of ibuprofen for a headache?                    | No         | 0.8350        |
+| How do I write a for loop in Rust?                                             | No         | 0.8365        |
 
 ## How I Used AI
 
-**1.** I used Gemini to analyze the structure of the documents and confirm my suspicion that a header based chunking strategy would be more effective than a character window based strategy. This included measuring the average sizes of document sections and providing examples of an ideal chunk size and their tradeoffs against the existing strategy. Based on this analysis, I provided instructions to produce a new chunking function that split documents along `##` headers. 
+**1.** I used Gemini to analyze the structure of the documents and confirm my suspicion that a header based chunking strategy would be more effective than a character window based strategy. This included measuring the average sizes of document sections and providing examples of an ideal chunk size and their tradeoffs against the existing strategy. Based on this analysis, I provided instructions to produce a new chunking function that split documents along `##` headers.
 
-The first iteration focused solely on `##` headers, which left small introduction sections as separate chunks, causing a violation of the min tokens per chunk constraint. I had the model suggest improvements and it suggested merging the introduction sections with the first section of the document and prepending the title to each chunk. 
-     
-I investigated how merging the introduction section with the first section would impact retrieval and found that it did not significantly impact retrieval results, while keeping chunks within the constraints of Criterion 4 and avoiding messy conditional rules for standalone introduction chunks. I also noticed that the titles of each document provided more relevant context than the filenames and that embedding the document title in each chunk improved retrieval. 
+The first iteration focused solely on `##` headers, which left small introduction sections as separate chunks, causing a violation of the min tokens per chunk constraint. I had the model suggest improvements and it suggested merging the introduction sections with the first section of the document and prepending the title to each chunk.
+
+I investigated how merging the introduction section with the first section would impact retrieval and found that it did not significantly impact retrieval results, while keeping chunks within the constraints of Criterion 4 and avoiding messy conditional rules for standalone introduction chunks. I also noticed that the titles of each document provided more relevant context than the filenames and that embedding the document title in each chunk improved retrieval.
 
 **2.** I used Gemini to run all in scope and out of scope questions, log the best distance for each, analyze the gap between the results, outline the tradeoffs of moving the cutoff higher or lower, with examples of how moving the cutoff would impact results.
 
 The model provided a structured set of tables and detailed calculations that made it easy to understand the impact of the cutoff and make an informed decision along with the python script it used to generate the results, which allowed me to verify its output.
 
 I combined these insights with an understanding of the tradeoffs from the new chunking strategy I implemented to make a final decision on the cutoff.
-
-
-
-
 
 <!-- ── Stretch features ─────────────────────────────────────────────────────
      Doing one? Say so here BEFORE you start. A feature this README never
@@ -167,17 +163,67 @@ I combined these insights with an understanding of the tradeoffs from the new ch
 
      Milestone 1. -->
 
-| Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
-|---|---|---|---|---|---|
-| 1. Retrieved chunk contains the answer | 4 of 5 |  |  |  |  |
-| 2. Every answer names a source | 5 of 5 |  |  |  |  |
-| 3. Gate stops out-of-corpus questions | 4 of 5 |  |  |  |  |
-| 4. | | | | | |
-| 5. | | | | | |
+| Criterion                                                                                             | Target | Run 1  | Run 2  | Run 3  | Verdict |
+| ----------------------------------------------------------------------------------------------------- | ------ | ------ | ------ | ------ | ------- |
+| 1. Retrieved chunk contains the answer                                                                | 4 of 5 | 5 of 5 | 5 of 5 | 5 of 5 | MET     |
+| 2. Every answer names a source                                                                        | 5 of 5 | 5 of 5 | 5 of 5 | 5 of 5 | MET     |
+| 3. Gate stops out-of-corpus questions                                                                 | 4 of 5 | 5 of 5 | 5 of 5 | 5 of 5 | MET     |
+| 4. No chunk is shorter than 150 characters, and every chunk contains at least two complete sentences. | 5 of 5 | 5 of 5 | 5 of 5 | 5 of 5 | MET     |
+| 5. The primary file cited in the answer is the same file where the answer is found.                   | 4 of 5 | 4 of 5 | 4 of 5 | 4 of 5 | MET     |
 
 <!-- Underneath, paste the REAL output for each criterion from one of your
      runs — the actual text your system produced, not a description of it.
      Name the file and function that produced it. -->
+
+### Real Output
+
+**Criterion 1: Retrieved chunk contains the answer**
+Produced by `run_eval.py::main` via `store.py::search` and `chunker.py::split_documents`:
+
+```
+Halden Bay is built on three levels (from guide_halden_bay.md).
+```
+
+**Criterion 2: Every answer names a source**
+Produced by `run_eval.py::main`, `store.py::search`, and `chunker.py::split_documents`:
+
+```
+Several riverside businesses in Brightwater close entirely from January to March, which falls during the winter season (guide_seasons.md and guide_brightwater.md).
+```
+
+**Criterion 3: Gate stops out-of-corpus questions**
+
+Produced by `run_eval.py::check_out_of_scope`, cutoff 0.65. Refused 5 of 5.
+
+```
+What is the capital of Mongolia? — Best distance 0.887 — refused
+How do I change the oil in a diesel engine? — Best distance 0.897 — refused
+Who won the 1994 World Cup? — Best distance 0.903 — refused
+What is the recommended dosage of ibuprofen for a headache? — Best distance 0.829 — refused
+How do I write a for loop in Rust? — Best distance 0.853 — refused
+```
+
+**Criterion 4: No chunk shorter than 150 characters, every chunk has 2+ complete sentences**
+
+Produced by `tools/check_criterion4.py` using `chunker.py::split_documents`:
+
+```
+Total chunks: 84
+
+Chunks shorter than 150 chars: 0
+
+Chunks with fewer than 2 sentences: 0
+```
+
+**Criterion 5: Primary file cited matches the file where the answer is found**
+
+Produced by `run_eval.py::main` via `store.py::search` and `chunker.py::split_documents`,
+
+Answer contained in `guide_kestrelford.md`:
+
+```
+According to `guide_kestrelford.md`, booking ahead matters between May and September because there is no accommodation of any kind within four miles of the town in either direction.
+```
 
 ## Verdicts
 
@@ -190,13 +236,13 @@ I combined these insights with an understanding of the tradeoffs from the new ch
 
      Milestone 2. -->
 
-| # | Criterion | Verdict | How I decided |
-|---|---|---|---|
-| 1 |  |  |  |
-| 2 |  |  |  |
-| 3 |  |  |  |
-| 4 |  |  |  |
-| 5 |  |  |  |
+| #   | Criterion | Verdict | How I decided |
+| --- | --------- | ------- | ------------- |
+| 1   |           |         |               |
+| 2   |           |         |               |
+| 3   |           |         |               |
+| 4   |           |         |               |
+| 5   |           |         |               |
 
 ## Diagnoses
 
@@ -232,13 +278,13 @@ I combined these insights with an understanding of the tradeoffs from the new ch
 <!-- Same format, same five criteria, three runs each.
      `python run_eval.py --label after` -->
 
-| Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
-|---|---|---|---|---|---|
-| 1. Retrieved chunk contains the answer | 4 of 5 |  |  |  |  |
-| 2. Every answer names a source | 5 of 5 |  |  |  |  |
-| 3. Gate stops out-of-corpus questions | 4 of 5 |  |  |  |  |
-| 4. | | | | | |
-| 5. | | | | | |
+| Criterion                              | Target | Run 1 | Run 2 | Run 3 | Verdict |
+| -------------------------------------- | ------ | ----- | ----- | ----- | ------- |
+| 1. Retrieved chunk contains the answer | 4 of 5 |       |       |       |         |
+| 2. Every answer names a source         | 5 of 5 |       |       |       |         |
+| 3. Gate stops out-of-corpus questions  | 4 of 5 |       |       |       |         |
+| 4.                                     |        |       |       |       |         |
+| 5.                                     |        |       |       |       |         |
 
 **Did it help?**
 
